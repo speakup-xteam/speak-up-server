@@ -17,7 +17,6 @@ let userRef = db.ref("users");
 let topicRef = db.ref("topics");
 
 function matchingUsers () {
-
     userRef.orderByChild('status').equalTo('matching').on('value', (snapshot) => {
 
         let data = snapshot.val();
@@ -28,10 +27,18 @@ function matchingUsers () {
 
         for (let i = 0; i < userIds.length; i++) {
             for (let j = i + 1; j < userIds.length; j++) {
-                let matched = checkIsMatchable(data[userIds[i]], data[userIds[j]]);
+
+                let user1 = data[userIds[i]];
+                user1.id = userIds[i];
+
+                let user2 = data[userIds[j]];
+                user2.id = userIds[j];
+
+                let matched = checkIsMatchable(user1, user2);
+
                 if (matched) {
                     let selectedTopic = chooseTopicRandomly(matched);
-                    sendMatchingResponse(userIds[i], userIds[j], selectedTopic);
+                    sendMatchingResponse(user1, user2, selectedTopic);
                     return;
                 }
             }
@@ -54,51 +61,51 @@ function chooseTopicRandomly(topics) {
     let random = Math.floor(Math.random() * 10 ) % topics.length;
     let selectTopic = appTopics[topics[random]];
 
-    return selectTopic[Math.floor(Math.random() * 100 ) % selectTopic.length]
+    return selectTopic[Math.floor(Math.random() * 100 ) % selectTopic.length];
 }
 
-function sendMatchingResponse(userId, partnerId, topic) {
+function sendMatchingResponse(user, partner, topic) {
+    let userRes = userResponse.get(user.id);
+    let partnerRes = userResponse.get(partner.id);
 
-    let user = userResponse.get(userId);
-    let partner = userResponse.get(partnerId);
-
-    if (!user || !partner)
+    if (!userRes || !partnerRes)
         return;
 
-    if (user.headersSent || partner.headersSent)
+    if (userRes.headersSent || partnerRes.headersSent)
         return;
 
-    user.status(200).json(
+    userRes.status(200).json(
         {
-            partner: partnerId,
+            partner: partner,
             selectedTopic: topic,
             makeCall: true,
         }
     );
 
-    partner.status(200).json(
+    partnerRes.status(200).json(
         {
-            partner: userId,
+            partner: user,
             selectedTopic: topic,
             makeCall: false
         }
     );
 
-    userRef.child(userId)
+    userRef.child(user.id)
         .update({status: 'matched'});
 
-    userRef.child(partnerId)
+    userRef.child(partner.id)
         .update({status: 'matched'});
 
-    userResponse.set(userId, null);
-    userResponse.set(partnerId, null);
+    userResponse.set(user.id, null);
+    userResponse.set(partner.id, null);
 }
 
-topicRef.once('value', (snapshot) => {
-    appTopics = snapshot.val();
-    console.log("Topics loaded");
-    matchingUsers();
-});
+new Promise((resolve, reject) => {
+    topicRef.once('value', (snapshot) => {
+        appTopics = snapshot.val();
+        resolve();
+    });
+}).then(matchingUsers);
 
 module.exports.matchUsers = (req, res, next) => {
 

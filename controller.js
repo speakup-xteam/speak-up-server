@@ -4,7 +4,7 @@ const serviceAccount = require('./firebase-service-account');
 
 firebaseAdmin.initializeApp({
     credential: firebaseAdmin.credential.cert(serviceAccount),
-    databaseURL: "https://project-4784619200129114476.firebaseio.com"
+    databaseURL: "https://speak-up-android.firebaseio.com"
 });
 
 const MAXIMUM_MATCHING_TIME = 10000;
@@ -113,7 +113,7 @@ module.exports.matchUsers = (req, res, next) => {
     setTimeout(() => {
         let response = userResponse.get(userId);
         if (response && !response.headersSent) {
-            userRef.child(body.userId).update({status: 'online'});
+            userRef.child(userId).update({status: 'online'});
             response.status(400).json({message: 'Partner not found'});
             userResponse.set(userId, null);
         }

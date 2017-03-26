@@ -17,7 +17,7 @@ let userRef = db.ref("users");
 let topicRef = db.ref("topics");
 
 function matchingUsers () {
-    userRef.orderByChild('status').equalTo('matching').on('value', (snapshot) => {
+    userRef.orderByChild('status').equalTo('matching').once('value', (snapshot) => {
 
         let data = snapshot.val();
         if (!data)
@@ -39,11 +39,10 @@ function matchingUsers () {
                 if (matched) {
                     let selectedTopic = chooseTopicRandomly(matched);
                     sendMatchingResponse(user1, user2, selectedTopic);
-                    return;
                 }
             }
         }
-    })
+    });
 }
 
 function checkIsMatchable(user1, user2) {
@@ -105,7 +104,12 @@ new Promise((resolve, reject) => {
         appTopics = snapshot.val();
         resolve();
     });
-}).then(matchingUsers);
+}).then(() => {
+    userRef.on('child_changed', (snapshot) => {
+        if (snapshot.val().status == 'matching')
+            matchingUsers();
+    })
+});
 
 module.exports.matchUsers = (req, res, next) => {
 
